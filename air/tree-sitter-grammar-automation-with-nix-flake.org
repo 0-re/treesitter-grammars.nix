@@ -1,0 +1,532 @@
+#+title: Tree-Sitter Grammar Automation with Nix Flake
+#+state: ready
+#+FILETAGS: :nix:tree-sitter:automation:flake:
+
+* Summary
+
+Create a Nix flake that provides a curated collection of tree-sitter grammars with automatic discovery and easy consumption patterns, inspired by [[https://github.com/numtide/llm-agents.nix][llm-agents.nix]]. The flake will use blueprint for automatic organization and provide both individual grammar packages and a combined overlay for seamless integration into NixOS configurations and development environments.
+
+* Motivation
+
+Tree-sitter grammars are essential for modern text editors and development tools, providing fast and accurate syntax highlighting, code navigation, and structural editing. However, managing tree-sitter grammars across different projects presents several challenges:
+
+** Problems Being Solved
+
+1. **Fragmented Grammar Sources**: Tree-sitter grammars are scattered across different repositories with inconsistent packaging
+2. **Version Management Complexity**: Keeping grammars up-to-date requires manual tracking of multiple upstream sources
+3. **Integration Overhead**: Each project needs to individually configure and build the grammars they need
+4. **Build Reproducibility**: Lack of deterministic builds leads to "works on my machine" problems
+5. **Discovery Challenge**: Finding and evaluating available grammars requires extensive research
+
+** Goals
+
+- Provide a centralized, well-maintained collection of common tree-sitter grammars
+- Enable easy consumption via Nix flakes with minimal configuration
+- Support automatic updates through CI/CD pipelines
+- Offer both individual grammar packages and convenient overlay patterns
+- Maintain multi-platform support (x86_64-linux, aarch64-linux, x86_64-darwin, aarch64-darwin)
+- Use blueprint framework for clean, maintainable flake structure
+- Provide helper functions for building custom grammars
+
+** Non-Goals
+
+- Creating new tree-sitter grammars from scratch (only packaging existing ones)
+- Supporting every possible tree-sitter grammar (start with most common ~20-30)
+- Building editor-specific plugins (focus on grammar packages only)
+- Providing language servers or LSP functionality
+- Managing tree-sitter CLI tools (separate concern)
+
+* Proposal
+
+Create a Nix flake repository ~treesitter-grammars.nix~ that follows the llm-agents.nix organizational pattern:
+
+** Repository Structure
+
+#+begin_src
+treesitter-grammars.nix/
+├── flake.nix                    # Blueprint-based flake
+├── flake.lock
+├── packages/                    # Grammar packages (auto-discovered by blueprint)
+│   ├── tree-sitter-astro/
+│   │   ├── default.nix
+│   │   └── package.nix
+│   ├── tree-sitter-hcl/
+│   │   ├── default.nix
+│   │   └── package.nix
+│   ├── tree-sitter-kotlin/
+│   │   ├── default.nix
+│   │   └── package.nix
+│   ├── tree-sitter-nix/
+│   │   ├── default.nix
+│   │   └── package.nix
+│   ├── tree-sitter-nu/
+│   │   ├── default.nix
+│   │   └── package.nix
+│   ├── tree-sitter-roc/
+│   │   ├── default.nix
+│   │   └── package.nix
+│   ├── tree-sitter-sql/
+│   │   ├── default.nix
+│   │   └── package.nix
+│   ├── tree-sitter-templ/
+│   │   ├── default.nix
+│   │   └── package.nix
+│   └── ...
+├── lib/                         # Shared utilities
+│   └── default.nix             # Helper functions for building grammars
+├── overlays/                    # Nixpkgs overlays (auto-discovered)
+│   └── default.nix             # Overlay exposing all grammars
+├── devshell.nix                # Development environment
+├── scripts/                     # Nushell automation scripts
+│   ├── update-grammar.nu       # Update a specific grammar
+│   └── add-grammar.nu          # Add a new grammar
+├── .github/
+│   └── workflows/
+│       └── build.yml           # CI builds
+└── README.md
+#+end_src
+
+** Core Components
+
+*** 1. Grammar Package Pattern
+
+Each grammar follows a consistent structure:
+
+**** ~packages/tree-sitter-<language>/default.nix~
+#+begin_src nix
+# Export the package built from package.nix
+{ callPackage }:
+callPackage ./package.nix { }
+#+end_src
+
+**** ~packages/tree-sitter-<language>/package.nix~
+#+begin_src nix
+{ lib
+, stdenv
+, fetchFromGitHub
+, tree-sitter
+}:
+
+stdenv.mkDerivation rec {
+  pname = "tree-sitter-<language>";
+  version = "0.x.y";
+
+  src = fetchFromGitHub {
+    owner = "tree-sitter";
+    repo = "tree-sitter-<language>";
+    rev = "v${version}";
+    hash = "sha256-...";
+  };
+
+  nativeBuildInputs = [ tree-sitter ];
+
+  # Standard tree-sitter grammar build
+  buildPhase = ''
+    tree-sitter generate
+  '';
+
+  installPhase = ''
+    mkdir -p $out/parser
+    cp -r src/parser.c src/tree_sitter $out/parser/
+  '';
+
+  meta = with lib; {
+    description = "Tree-sitter grammar for <language>";
+    homepage = "https://github.com/tree-sitter/tree-sitter-<language>";
+    license = licenses.mit; # Adjust per grammar
+    maintainers = [ ];
+    platforms = platforms.unix;
+  };
+}
+#+end_src
+
+*** 2. Blueprint Integration
+
+The ~flake.nix~ leverages blueprint for automatic discovery:
+
+#+begin_src nix
+{
+  description = "Curated collection of tree-sitter grammars";
+
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    blueprint.url = "github:numtide/blueprint";
+    blueprint.inputs.nixpkgs.follows = "nixpkgs";
+  };
+
+  outputs = inputs: inputs.blueprint {
+    inherit inputs;
+    # Blueprint automatically discovers:
+    # - packages/ → packages.<system>.*
+    # - overlays/ → overlays.*
+  };
+}
+#+end_src
+
+*** 3. Shared Library Functions
+
+~lib/default.nix~ provides helpers for building grammars:
+
+#+begin_src nix
+{ lib, stdenv, tree-sitter }:
+
+rec {
+  # Build a tree-sitter grammar from source
+  buildGrammar = {
+    language,
+    version,
+    src,
+    location ? null,  # For grammars in subdirectories
+    generate ? true,  # Whether to run tree-sitter generate
+    ...
+  }@args: stdenv.mkDerivation (rec {
+    pname = "tree-sitter-${language}";
+    inherit version src;
+
+    nativeBuildInputs = [ tree-sitter ];
+
+    buildPhase = lib.optionalString generate ''
+      ${lib.optionalString (location != null) "cd ${location}"}
+      tree-sitter generate
+    '';
+
+    installPhase = ''
+      mkdir -p $out/parser
+      ${lib.optionalString (location != null) "cd ${location}"}
+      cp -r src/parser.c src/tree_sitter $out/parser/
+      ${lib.optionalString (builtins.pathExists "queries") ''
+        cp -r queries $out/
+      ''}
+    '';
+
+    meta = with lib; {
+      description = "Tree-sitter grammar for ${language}";
+      platforms = platforms.unix;
+    } // (args.meta or {});
+  } // removeAttrs args [ "language" "meta" "generate" "location" ]);
+
+  # Fetch from tree-sitter organization
+  fetchTreeSitterGrammar = {
+    language,
+    version,
+    hash,
+    repo ? "tree-sitter-${language}",
+    ...
+  }@args: fetchFromGitHub ({
+    owner = "tree-sitter";
+    inherit repo;
+    rev = "v${version}";
+    inherit hash;
+  } // removeAttrs args [ "language" "version" "hash" "repo" ]);
+}
+#+end_src
+
+*** 4. Overlay for Easy Consumption
+
+~overlays/default.nix~ provides all grammars:
+
+#+begin_src nix
+{ lib, ... }:
+
+final: prev: {
+  tree-sitter-grammars = {
+    # All grammars automatically included via blueprint's package discovery
+    inherit (final)
+      tree-sitter-astro
+      tree-sitter-hcl
+      tree-sitter-kotlin
+      tree-sitter-nix
+      tree-sitter-nu
+      tree-sitter-roc
+      tree-sitter-sql
+      tree-sitter-templ
+      ;
+  };
+}
+#+end_src
+
+** Usage Patterns
+
+*** Direct Flake Usage
+
+#+begin_src nix
+# flake.nix
+{
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    tree-sitter-grammars.url = "github:0-re/treesitter-grammars.nix";
+  };
+
+  outputs = { nixpkgs, tree-sitter-grammars, ... }: {
+    devShells.x86_64-linux.default = nixpkgs.legacyPackages.x86_64-linux.mkShell {
+      packages = [
+        tree-sitter-grammars.packages.x86_64-linux.tree-sitter-nix
+        tree-sitter-grammars.packages.x86_64-linux.tree-sitter-nu
+        tree-sitter-grammars.packages.x86_64-linux.tree-sitter-roc
+      ];
+    };
+  };
+}
+#+end_src
+
+*** With Overlay
+
+#+begin_src nix
+# configuration.nix or home-manager
+{ pkgs, ... }: {
+  nixpkgs.overlays = [
+    inputs.tree-sitter-grammars.overlays.default
+  ];
+
+  environment.systemPackages = with pkgs.tree-sitter-grammars; [
+    tree-sitter-nix
+    tree-sitter-nu
+    tree-sitter-kotlin
+  ];
+}
+#+end_src
+
+*** Ad-hoc Usage
+
+#+begin_src bash
+# Try a grammar without installation
+nix build github:0-re/treesitter-grammars.nix#tree-sitter-nix
+
+# Use in a shell
+nix shell github:0-re/treesitter-grammars.nix#tree-sitter-nu
+#+end_src
+
+* Design Details
+
+** Initial Grammar Selection
+
+The following grammars will be included based on current project needs:
+
+- astro (Astro framework)
+- hcl (HashiCorp Configuration Language)
+- kotlin
+- nix
+- nu (Nushell)
+- roc (Roc language)
+- sql
+- templ (Go templating language)
+
+*** Selection Criteria
+- Add grammars when needed for specific projects
+- No requirement to maintain comprehensive language coverage
+- Focus on grammars actively used in development workflows
+- Easy to add new grammars following the established pattern
+
+** Automation Strategy
+
+*** Update Mechanism
+
+1. **Manual or On-Demand Updates**: Update grammars as needed rather than daily automation
+2. **Version Detection**: Use Nushell scripts to query GitHub API for latest releases
+3. **Hash Calculation**: Use Nushell to compute Nix hashes for new versions
+4. **Direct Commits**: Update grammar versions directly when needed
+5. **Scripting Language**: All automation scripts written in Nushell
+
+*** CI/CD Workflow
+
+#+begin_src yaml
+# .github/workflows/build.yml
+name: Build and Test
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: cachix/install-nix-action@v24
+      - name: Build all grammars
+        run: nix flake check
+#+end_src
+
+** Build Optimization
+
+*** Caching Strategy
+
+1. **GitHub Actions Cache**: Cache Nix store between runs
+2. **Binary Cache**: Optional Cachix setup for pre-built grammars
+3. **Derivation Splitting**: Each grammar is independent for parallel builds
+
+*** Cross-Platform Builds
+
+- Use GitHub Actions matrix builds for all platforms
+- Ensure grammars build on Linux (x86_64, aarch64) and macOS (x86_64, aarch64)
+- Platform-specific fixes documented in individual package.nix files
+
+** Test Plan
+
+*** Build Tests
+
+#+begin_src bash
+# Test all grammars build successfully
+nix flake check
+
+# Build specific grammar
+nix build .#tree-sitter-nix
+
+# Build all grammars
+nix build .#tree-sitter-astro .#tree-sitter-hcl .#tree-sitter-kotlin \
+  .#tree-sitter-nix .#tree-sitter-nu .#tree-sitter-roc \
+  .#tree-sitter-sql .#tree-sitter-templ
+#+end_src
+
+*** Integration Tests
+
+1. **Editor Integration**: Test grammars work with Neovim tree-sitter plugin
+2. **Parser Validation**: Verify parsers can parse sample code
+3. **Cross-Platform**: Ensure builds work on all target platforms
+4. **Overlay Testing**: Verify overlay correctly exposes all grammars
+
+*** CI Validation
+
+- All PRs must pass ~nix flake check~
+- Build all changed grammars
+- Verify formatting with ~nix fmt~
+- Check that metadata is complete
+
+* Drawbacks
+
+** Maintenance Burden
+
+- Requires monitoring ~30+ upstream repositories for updates
+- Breaking changes in tree-sitter grammars need quick response
+- Platform-specific build issues require testing across architectures
+
+** Potential Duplication
+
+- Nixpkgs already has some tree-sitter grammars
+- Risk of divergence between this flake and nixpkgs
+- Users might be confused about which source to use
+
+Mitigation: Document relationship with nixpkgs, consider upstreaming improvements
+
+** Update Lag
+
+- Automated updates still require manual review and merge
+- Critical fixes might not propagate immediately
+- Dependency on GitHub API rate limits
+
+* Alternatives
+
+** Use Nixpkgs Tree-Sitter Grammars Directly
+
+*Pros*:
+- No additional maintenance
+- Official nixpkgs support
+- Already well-tested
+
+*Cons*:
+- Updates tied to nixpkgs release cycle
+- Less flexibility for rapid iteration
+- More complex contribution process
+
+** Create a NUR (Nix User Repository) Package
+
+*Pros*:
+- Part of NUR ecosystem
+- Familiar to Nix users
+
+*Cons*:
+- Less discoverability
+- NUR's update mechanism less sophisticated
+- No first-class flake support
+
+** Manual Per-Project Management
+
+*Pros*:
+- Complete control per project
+- No external dependencies
+
+*Cons*:
+- Duplicate effort across projects
+- Inconsistent versions
+- No shared maintenance burden
+
+** Decision: Standalone Flake with Blueprint
+
+Following llm-agents.nix pattern provides:
+- Clean, modern flake-based approach
+- Automatic organization via blueprint
+- Easy consumption patterns
+- Potential for upstream contribution to nixpkgs
+
+* Infrastructure Needed
+
+** Required Tools
+
+- Nix with flakes enabled
+- Git for version control
+- GitHub account for repository hosting
+- Tree-sitter CLI for grammar generation
+
+** CI/CD Requirements
+
+- GitHub Actions (free for public repos)
+- Optional: Cachix account for binary cache
+- Optional: GitHub bot account for automated PRs
+
+** Development Environment
+
+Provided via ~devshell.nix~:
+#+begin_src nix
+{ pkgs, ... }: {
+  packages = with pkgs; [
+    git
+    tree-sitter
+    nushell      # Scripting language for automation
+    nodejs       # Some grammars need Node.js
+    # Formatting
+    nixpkgs-fmt
+    # Update utilities
+    nix-update
+    nix-prefetch-git
+  ];
+
+  commands = [
+    {
+      name = "update-grammar";
+      help = "Update a specific grammar to latest version";
+      command = ''nu scripts/update-grammar.nu "$@"'';
+    }
+    {
+      name = "add-grammar";
+      help = "Add a new tree-sitter grammar";
+      command = ''nu scripts/add-grammar.nu "$@"'';
+    }
+  ];
+}
+#+end_src
+
+** Documentation Requirements
+
+- ~README.md~: Project overview, usage examples
+- ~CONTRIBUTING.md~: Guide for adding new grammars
+- ~GRAMMARS.md~: List of all available grammars with versions
+- Per-grammar documentation in package directories
+
+* History
+
+- 2025-12-17: Initial draft created based on llm-agents.nix research
+- 2025-12-17: Updated to use specific grammar list (astro, hcl, kotlin, nix, nu, roc, sql, templ)
+- 2025-12-17: Changed automation approach to use Nushell scripts instead of daily CI
+- 2025-12-17: Updated grammar selection to be arbitrary/on-demand rather than tiered
+- 2025-12-17: Moved to ready state, specification complete and approved
+- 2025-12-17: Implementation started
+
+* References
+
+- [[https://github.com/numtide/llm-agents.nix][llm-agents.nix]] - Primary inspiration for project structure
+- [[https://github.com/numtide/blueprint][blueprint]] - Nix flake organization framework
+- [[https://tree-sitter.github.io/tree-sitter/][Tree-sitter Documentation]]
+- [[https://github.com/tree-sitter][Tree-sitter GitHub Organization]]
+- [[https://github.com/NixOS/nixpkgs/tree/master/pkgs/development/tools/parsing/tree-sitter][Nixpkgs Tree-sitter Grammars]]
+- [[https://www.nushell.sh/][Nushell]] - Scripting language used for automation
+
