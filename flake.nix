@@ -7,11 +7,13 @@
     blueprint.inputs.nixpkgs.follows = "nixpkgs";
   };
 
-  outputs = inputs:
+  outputs =
+    inputs:
     let
       blueprint-outputs = inputs.blueprint { inherit inputs; };
     in
-    blueprint-outputs // {
+    blueprint-outputs
+    // {
       # Manually expose overlay since blueprint doesn't auto-discover overlays
       overlays.default = import ./overlays/default.nix;
     };
