@@ -1,7 +1,11 @@
 { pkgs }:
 pkgs.mkShell {
   # Add build dependencies
-  packages = [ ];
+  packages = [
+    pkgs.nushell
+    pkgs.nix-prefetch-github
+    pkgs.nixpkgs-fmt
+  ];
 
   # Add environment variables
   env = { };
