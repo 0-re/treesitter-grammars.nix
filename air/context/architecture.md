@@ -1,245 +1,304 @@
 # System Architecture
 
-<!-- TODO: Replace with your project's architecture description -->
-
 ## Core Philosophy
 
-<!-- TODO: Describe your project's core philosophy and principles -->
-This project follows documentation-driven development principles, where planning documents serve as the single source of truth for project requirements and specifications.
+This project provides a curated collection of tree-sitter grammars packaged with Nix, following the llm-agents.nix organizational pattern. The architecture emphasizes simplicity, consistency, and ease of use through blueprint's automatic discovery system.
 
 ## Design Principles
 
-<!-- TODO: Define your project's specific design principles -->
-<!-- Example principles that work well with Air:
+### Blueprint-Based Organization
+- Automatic discovery of packages, overlays, and libraries
+- Convention over configuration for flake structure
+- Each grammar is an independent package in `packages/`
+- Minimal boilerplate in `flake.nix`
 
-### Filesystem as Database
-- No complex databases required - files and directories store all data
-- Version-aware directory structure (v0.1, v0.2, v0.10 sort correctly)
-- Works with any text editor and file explorer
-- Universal accessibility across different platforms and tools
+### Consistent Package Structure
+- Every grammar follows the same two-file pattern:
+  - `default.nix`: Simple callPackage export
+  - `package.nix`: Standard derivation with metadata
+- Shared helper functions in `lib/` for common build logic
+- Uniform metadata (description, homepage, license, platforms)
 
-### Documentation-Driven Development
-- Planning documents serve as single source of truth
-- Implementation follows documented specifications
-- Progress tracking through document states
-- Git integration for versioning without dependency
+### On-Demand Updates
+- Manual updates using Nushell scripts rather than automated CI
+- Updates driven by actual needs, not scheduled runs
+- Nushell provides cross-platform scripting with good ergonomics
+- Simple update workflow: fetch latest, compute hash, update package
 
-### Simplicity and Maintainability
-- Straightforward approaches over complex solutions
-- Clear separation of concerns between components
-- Extensible design that allows future complexity when needed
-- Balance between functionality and maintainability
--->
+### Multi-Platform Support
+- Build on Linux (x86_64, aarch64) and macOS (x86_64, aarch64)
+- CI testing ensures cross-platform compatibility
+- Platform-specific fixes documented in individual packages
+
+### Easy Consumption
+- Multiple usage patterns: direct flake inputs, overlay, ad-hoc
+- Nixpkgs overlay for convenient access to all grammars
+- Clear examples in documentation
+- Works with NixOS, nix-darwin, and home-manager
 
 ## System Architecture
 
-<!-- TODO: Describe your project's architecture -->
-<!-- Example structure that works well with Air:
-
 ```
-project/
-├── core/            # Core business logic
-├── cli/             # Command-line interface
-├── web/             # Web interface (optional)
-└── air/             # Air documentation directory
-    ├── v0.1/        # Current milestone
-    ├── v0.2/        # Next milestone
-    ├── templates/   # Document templates
-    └── context/     # Generated context files
+treesitter-grammars.nix/
+├── flake.nix                    # Blueprint entry point
+├── flake.lock                   # Locked dependencies
+├── packages/                    # Grammar packages (blueprint auto-discovery)
+│   ├── tree-sitter-astro/
+│   │   ├── default.nix         # CallPackage export
+│   │   └── package.nix         # Derivation definition
+│   ├── tree-sitter-hcl/
+│   ├── tree-sitter-kotlin/
+│   ├── tree-sitter-nix/
+│   ├── tree-sitter-nu/
+│   ├── tree-sitter-roc/
+│   ├── tree-sitter-sql/
+│   └── tree-sitter-templ/
+├── lib/                         # Shared utilities
+│   └── default.nix             # buildGrammar, fetchTreeSitterGrammar
+├── overlays/                    # Nixpkgs overlays (blueprint auto-discovery)
+│   └── default.nix             # tree-sitter-grammars attribute set
+├── scripts/                     # Nushell automation
+│   ├── update-grammar.nu       # Update specific grammar
+│   └── add-grammar.nu          # Add new grammar to collection
+├── devshell.nix                # Development environment
+├── air/                         # Documentation
+│   ├── context/                # Project context files
+│   ├── tree-sitter-grammar-automation-with-nix-flake.org
+│   └── ...
+└── .github/
+    └── workflows/
+        └── build.yml           # CI: build and test
 ```
 
-### Core Components
-- **Purpose**: Contains main business logic
-- **Responsibilities**: [Your core functionality]
-- **Design**: [Your design principles]
+### Package Layer
+- **Purpose**: Individual tree-sitter grammar packages
+- **Responsibilities**: Build grammars from source, install parser files
+- **Design**: Standard Nix derivations using tree-sitter CLI
 
-### Interface Layer
-- **Purpose**: User interaction and presentation
-- **Framework**: [Your chosen framework]
-- **Responsibilities**: User input, output formatting
--->
+### Library Layer
+- **Purpose**: Shared build logic for all grammars
+- **Responsibilities**: Provide helper functions to reduce boilerplate
+- **Design**: Reusable functions with sensible defaults
+
+### Overlay Layer
+- **Purpose**: Integration with nixpkgs ecosystem
+- **Responsibilities**: Expose all grammars under unified namespace
+- **Design**: Standard Nixpkgs overlay pattern
+
+### Automation Layer
+- **Purpose**: Grammar maintenance and updates
+- **Responsibilities**: Fetch versions, compute hashes, update packages
+- **Design**: Nushell scripts for cross-platform compatibility
 
 ## Core Components
 
-<!-- TODO: Describe your project's main components -->
+### 1. Blueprint Framework Integration
 
-### 1. Configuration System
-<!-- Air provides a configuration system that you can use -->
-The project uses Air's configuration system:
+Blueprint provides automatic flake organization by mapping directories to outputs:
 
-#### air-config.toml
-- Main directory: `./air/`
-- Template directory: `./air/templates/`
-- Archive directory: `./air/archive/`
-- Context directory: `./air/context/`
-- Supported file types: `.org` (default), `.md`
-
-<!-- TODO: Add your project-specific configuration needs -->
-
-### 2. Document State Management
-<!-- Air provides predefined states for tracking work progress -->
-The project uses Air's six predefined states:
-
-```
-draft → ready → work-in-progress → complete
-   ↓                                  ↓
-dropped                           archive/
+```nix
+# flake.nix - minimal configuration
+{
+  description = "Curated collection of tree-sitter grammars packaged with Nix";
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    blueprint.url = "github:numtide/blueprint";
+    blueprint.inputs.nixpkgs.follows = "nixpkgs";
+  };
+  outputs = inputs: inputs.blueprint { inherit inputs; };
+}
 ```
 
-These states help track progress through the documentation-driven development workflow.
+Blueprint automatically discovers:
+- `packages/tree-sitter-*/` → `packages.<system>.tree-sitter-*`
+- `overlays/` → `overlays.default`
+- `lib/` → `lib.*`
+- `devshell.nix` → `devShells.<system>.default`
 
-<!-- TODO: Describe how states apply to your specific project workflow -->
+### 2. Grammar Package Structure
 
-### 3. Date Tracking System
+Each grammar follows a consistent two-file pattern:
 
-#### Layered Date Resolution Strategy
-**Priority Order**: Try multiple sources for robustness
-1. **Document metadata** (explicit dates in headers) - highest priority
-2. **Git history** - reliable timestamps when available
-3. **Filesystem metadata** - universal fallback
+```nix
+# packages/tree-sitter-<language>/default.nix
+{ callPackage }:
+callPackage ./package.nix { }
+```
 
-#### Implementation Approach
-- Use git2 crate with workspace-level dependency management
-- Simple git operations focused on Air's core needs
-- Graceful degradation when Git is unavailable
-- Cache date information to avoid repeated git operations
+```nix
+# packages/tree-sitter-<language>/package.nix
+{ lib, stdenv, fetchFromGitHub, tree-sitter }:
 
-### 4. Document Scanner and Metadata Extraction
+stdenv.mkDerivation rec {
+  pname = "tree-sitter-<language>";
+  version = "<version>";
 
-#### Multi-Format Support
-- **Org-mode**: Native support with orgize crate
-- **Markdown**: YAML/TOML front matter parsing
-- **Extensible**: Architecture allows adding new formats
+  src = fetchFromGitHub {
+    owner = "<owner>";
+    repo = "<repo>";
+    rev = "v${version}";
+    hash = "<sha256-hash>";
+  };
 
-#### Performance Design
-- Use `ignore` crate for fast file discovery with .gitignore respect
-- Parallel processing with `rayon` for large document sets
-- Metadata cache (future) for improved performance
+  nativeBuildInputs = [ tree-sitter ];
 
-#### Metadata Sources
-- YAML front matter (---...---)
-- TOML front matter (+++...+++)
-- Org-mode properties (#+PROPERTY: value)
-- Custom Air properties: state, tags, title
+  buildPhase = ''
+    tree-sitter generate
+  '';
 
-### 5. Directory-Based Progress Tracking
+  installPhase = ''
+    mkdir -p $out/parser
+    cp -r src/parser.c src/tree_sitter $out/parser/
+  '';
 
-#### Conceptual Design
-- **Directory Categories**: Each subdirectory represents logical grouping
-- **Progress per Category**: Status command shows statistics per directory
-- **Configurable Grouping**: Users define custom directory structures
-- **Visual Hierarchy**: Box rendering for clear separation
+  meta = with lib; {
+    description = "Tree-sitter grammar for <language>";
+    homepage = "<homepage>";
+    license = licenses.<license>;
+    platforms = platforms.unix;
+  };
+}
+```
 
-#### Implementation Requirements
-1. **Enhanced Scanner**: Group documents by parent directory during scanning
-2. **Directory Configuration**: User-specified directory tracking
-3. **Progress Calculations**: Count states per directory
-4. **Visual Components**: BoxPrinter for directory-level summaries
-5. **Filtering Options**: Directory-specific filtering and patterns
+### 3. Shared Library Functions
 
-### 6. Context Generation System (Future)
+The `lib/default.nix` provides helper functions to reduce boilerplate:
 
-#### Architecture Components
-1. **ContextGenerator**: Core class in air-core
-   - Scans Air documents and extracts metadata
-   - Analyzes patterns and conventions
-   - Generates context files from templates
+```nix
+{ lib, stdenv, tree-sitter, fetchFromGitHub }:
 
-2. **Template System**: For consistent file generation
-   - Embedded templates for each context file type
-   - Placeholder system for dynamic content
-   - Markdown formatting utilities
+rec {
+  # Build a tree-sitter grammar from source
+  buildGrammar = {
+    language,
+    version,
+    src,
+    location ? null,  # For grammars in subdirectories
+    generate ? true,  # Whether to run tree-sitter generate
+    ...
+  }@args: stdenv.mkDerivation ({
+    pname = "tree-sitter-${language}";
+    inherit version src;
+    nativeBuildInputs = [ tree-sitter ];
+    # ... build and install phases
+  } // removeAttrs args [ "language" "generate" "location" ]);
 
-3. **Tool File Generators**: Tool-specific formatters
-   - ClaudeGenerator: Creates CLAUDE.md with @references
-   - CursorGenerator: Creates .cursor/rules
-   - CopilotGenerator: Creates .github/copilot-instructions.md
+  # Fetch from tree-sitter organization
+  fetchTreeSitterGrammar = {
+    language,
+    version,
+    hash,
+    repo ? "tree-sitter-${language}",
+    ...
+  }@args: fetchFromGitHub ({
+    owner = "tree-sitter";
+    inherit repo;
+    rev = "v${version}";
+    inherit hash;
+  } // removeAttrs args [ "language" "version" "hash" "repo" ]);
+}
+```
+
+### 4. Overlay System
+
+The overlay exposes all grammars under a unified namespace:
+
+```nix
+# overlays/default.nix
+final: prev: {
+  tree-sitter-grammars = {
+    inherit (final)
+      tree-sitter-astro
+      tree-sitter-hcl
+      tree-sitter-kotlin
+      tree-sitter-nix
+      tree-sitter-nu
+      tree-sitter-roc
+      tree-sitter-sql
+      tree-sitter-templ
+      ;
+  };
+}
+```
+
+This allows users to access grammars via `pkgs.tree-sitter-grammars.tree-sitter-nix`.
+
+### 5. Automation Scripts (Nushell)
+
+Nushell scripts provide cross-platform automation:
+
+**update-grammar.nu**: Update a specific grammar
+- Fetch latest release from GitHub API
+- Compute new hash using nix-prefetch-git
+- Update package.nix with new version and hash
+
+**add-grammar.nu**: Add a new grammar to the collection
+- Create package directory structure
+- Generate default.nix and package.nix from template
+- Fetch initial version and hash from GitHub
 
 ## Technology Stack
 
-<!-- TODO: Replace with your project's technology stack -->
-<!-- Example sections to consider:
+### Build System and Tooling
+- **Nix**: Reproducible builds and package management
+- **Blueprint**: Flake organization and automatic discovery
+- **tree-sitter CLI**: Grammar generation from source
+- **nix-prefetch-git**: Computing content hashes for sources
 
-### Language and Runtime
-- **Language**: [Your primary language]
-- **Version**: [Language version/edition]
-- **Key Features**: [Important language features you use]
+### Automation and Scripting
+- **Nushell**: Cross-platform scripting for updates and maintenance
+- **GitHub API**: Fetching latest grammar releases
+- **GitHub Actions**: CI/CD for build testing
 
-### Key Dependencies
-- **Framework**: [Your main framework]
-- **Database**: [If applicable]
-- **Testing**: [Testing framework]
-- **Build Tools**: [Build system]
-- **Other Tools**: [Additional important dependencies]
+### Development Tools
+- **nixpkgs-fmt**: Nix code formatting
+- **nix flake check**: Build validation
+- **direnv**: Automatic development environment loading
 
-### Build System
-- **Build Tool**: [Your build system]
-- **Package Management**: [How you manage dependencies]
-- **Linting**: [Code quality tools]
--->
+### Supported Platforms
+- **x86_64-linux**: Linux on x86_64
+- **aarch64-linux**: Linux on ARM64
+- **x86_64-darwin**: macOS on Intel
+- **aarch64-darwin**: macOS on Apple Silicon
 
 ## Performance Considerations
 
-<!-- TODO: Add your project's specific performance considerations -->
+### Build Performance
+- Each grammar is independently built for parallel compilation
+- Blueprint's lazy evaluation ensures only requested packages are built
+- Nix's content-addressed store provides efficient caching
+- Binary cache (Cachix) can eliminate compilation entirely
 
-### File System Operations
-- Use `ignore` crate for efficient directory traversal
-- Respect .gitignore patterns to avoid scanning unnecessary files
-- Parallel processing for large document sets
-- Incremental scanning for changed files only
-
-### Memory Management
-- Stream processing for large files where possible
-- Lazy loading of document content
-- Efficient string handling with Rust's ownership system
-- Metadata cache (future) to reduce repeated parsing
-
-### Git Operations
-- Cache git repository handles
-- Batch git operations when possible
-- Fallback strategies when git operations fail
-- Optional git integration - never required for core functionality
+### Update Efficiency
+- Nushell scripts minimize external process calls
+- GitHub API rate limits respected with conditional requests
+- Hash computation only when version changes detected
+- Manual updates avoid unnecessary CI overhead
 
 ## Error Handling Strategy
 
-<!-- TODO: Describe your project's error handling approach -->
+### Build Errors
+- Each grammar build failure is isolated to that package
+- Clear error messages from tree-sitter CLI
+- Platform-specific build issues documented in package.nix
+- Fallback to nixpkgs grammars if needed
 
-### Error Types
-- **Configuration Errors**: Invalid TOML, missing files, permission issues
-- **Document Errors**: Invalid metadata, unsupported formats
-- **Git Errors**: Repository access, permission issues
-- **IO Errors**: File system access, network issues
+### Update Script Errors
+- GitHub API failures: retry with exponential backoff
+- Hash mismatch: clear error with re-fetch instructions
+- Version not found: suggest manual version specification
+- Network issues: graceful failure with informative messages
 
-### Error Reporting
-- Use `thiserror` for structured error handling
-- Chain errors with `?` operator for clean code flow
-- Provide actionable error messages with suggestions
-- Graceful degradation when optional features fail
+## Future Considerations
 
-### Recovery Strategies
-- Fallback to defaults for missing configuration
-- Continue processing when individual documents fail
-- Provide partial results with warnings
-- Clear indication of what failed and why
+### Potential Extensions
+- More grammars added on-demand based on usage
+- Automated testing of parsers with sample code
+- Integration with editor configuration (Neovim, Emacs, VS Code)
+- Upstreaming improvements to nixpkgs tree-sitter grammars
 
-## Future Architecture Considerations
-
-<!-- TODO: Describe planned architectural improvements and extensions -->
-
-### Scalability
-- Metadata cache with SQLite for large document sets
-- Incremental updates instead of full rescans
-- Streaming APIs for very large projects
-- Background processing for expensive operations
-
-### Extensibility
-- Plugin system for custom document formats
-- Hook system for external tool integration
-- Custom state definitions (post-v0.1)
-- API endpoints for web interface integration
-
-### Multi-User Support
-- Shared configuration management
-- Conflict resolution for concurrent edits
-- User-specific views and preferences
-- Audit logging for document changes
+### Maintenance
+- Regular dependency updates (nixpkgs, blueprint)
+- Monitor upstream grammar repositories for breaking changes
+- Community contributions for new grammars
+- Documentation improvements based on user feedback

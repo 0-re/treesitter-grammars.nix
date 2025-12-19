@@ -1,103 +1,216 @@
 # Implementation Guide
 
-<!-- TODO: Customize this guide for your project's specific technology stack and practices -->
-
 ## Development Environment
 
-<!-- TODO: Replace with your project's development environment setup -->
-<!-- Example sections for different technology stacks:
+### Prerequisites
+- **Nix**: Nix package manager with flakes enabled
+  ```bash
+  # Enable flakes in ~/.config/nix/nix.conf
+  experimental-features = nix-command flakes
+  ```
+- **direnv**: For automatic environment loading (optional but recommended)
+- **Git**: Version control
 
-### Language Configuration
-- **Language**: [Your language and version]
-- **Build System**: [Your build tool/system]
-- **Project Structure**: [Multi-module/package structure if applicable]
-- **Linting**: [Code quality tools enabled]
+### Environment Setup
+```bash
+# Clone repository
+git clone https://github.com/0-re/treesitter-grammars.nix
+cd treesitter-grammars.nix
 
-### Build Environment
-- [Your environment management approach]
-- [Required system dependencies]
-- [Development dependencies management]
+# Enter development shell (loads all tools)
+nix develop
 
-### Dependency Management
-- [How you manage dependencies]
-- [Version management strategy]
-- [Handling external dependencies]
-- [Documentation standards for dependency choices]
--->
+# Or use direnv for automatic loading
+direnv allow
+```
+
+### Development Shell Tools
+The `devshell.nix` provides:
+- `nushell` - Scripting automation
+- `tree-sitter` - Grammar generation CLI
+- `nodejs` - Required by some grammars
+- `nixpkgs-fmt` - Nix code formatting
+- `nix-update` - Version update helper
+- `nix-prefetch-git` - Hash computation
+
+### Project Structure
+```
+packages/                 # Grammar packages (one per subdirectory)
+  tree-sitter-<lang>/
+    default.nix          # CallPackage export
+    package.nix          # Derivation definition
+lib/                     # Shared utilities
+  default.nix            # buildGrammar, fetchTreeSitterGrammar
+overlays/                # Nixpkgs overlays
+  default.nix            # Expose all grammars
+scripts/                 # Nushell automation
+  update-grammar.nu      # Update specific grammar
+  add-grammar.nu         # Add new grammar
+```
 
 ## Coding Standards
 
-<!-- TODO: Replace with your project's language-specific coding standards -->
+### Nix Code Style
+- **Formatting**: Use `nixpkgs-fmt` for consistent formatting
+  ```bash
+  nixpkgs-fmt **/*.nix
+  ```
+- **Indentation**: 2 spaces (enforced by nixpkgs-fmt)
+- **Line Length**: Keep lines under 100 characters when practical
+- **Attribute Sets**: Align `=` for readability in multi-line sets
 
-<!-- Example coding standards for Rust - replace with your language-specific standards:
+### Package Structure
+Every grammar package must include:
+1. **default.nix**: Simple callPackage export
+   ```nix
+   { callPackage }:
+   callPackage ./package.nix { }
+   ```
 
-### Code Style
-#### Conciseness and Clarity
-- Use idiomatic language patterns
-- Avoid verbose implementations when simpler solutions exist
-- Don't create unnecessary abstractions
-- Use complete sentences with proper punctuation for user-facing messages
+2. **package.nix**: Standard derivation with:
+   - Metadata (`pname`, `version`, `src`)
+   - Build inputs (`nativeBuildInputs = [ tree-sitter ]`)
+   - Build and install phases
+   - Complete `meta` attribute set
 
-#### Type Safety
-- Use strong typing to prevent errors
-- Implement proper error handling
-- Leverage language features for safety
-- Use pattern matching over conditional logic where appropriate
+### Meta Attributes
+Always include in `meta`:
+- `description` - Clear, concise grammar description
+- `homepage` - Link to grammar repository
+- `license` - Correct SPDX license identifier
+- `platforms` - Usually `platforms.unix`
+- `maintainers` - Optional, for active maintainers
 
-#### Code Organization
-- Keep public API surface minimal and well-documented
-- Group related functionality logically
-- Separate business logic from interface code
-- Co-locate related types and functions
+### Version Management
+- Use exact versions from upstream releases
+- Pin with `rev = "v${version}"` for reproducibility
+- Always include `hash` (use `nix-prefetch-git` or `nix-hash`)
+- Document version update process in package if non-standard
 
-### Error Handling
-- Use structured error handling
-- Keep error messages clear and actionable for users
-- Provide graceful degradation when optional features fail
-- Chain errors appropriately
-
-### Documentation Standards
-- Document public APIs thoroughly
-- Focus on usage, not implementation details
-- Include examples for complex functionality
-- Document rationale for architectural decisions
--->
+### Documentation
+- Comment non-obvious build flags or patches
+- Document platform-specific workarounds
+- Include upstream links for issue references
+- Keep comments concise and relevant
 
 ## Development Practices
 
-<!-- TODO: Add your project-specific development practices -->
+### Adding a New Grammar
 
-<!-- Example development practices - customize for your project:
+1. **Research the grammar**:
+   ```bash
+   # Find the grammar repository
+   # Typical pattern: https://github.com/tree-sitter/tree-sitter-<language>
+   ```
 
-### Resource Management
-- How you handle static resources and templates
-- Approach to configuration and asset management
-- Strategy for embedded vs external resources
+2. **Create package structure**:
+   ```bash
+   mkdir -p packages/tree-sitter-<language>
+   cd packages/tree-sitter-<language>
+   ```
+
+3. **Create default.nix**:
+   ```nix
+   { callPackage }:
+   callPackage ./package.nix { }
+   ```
+
+4. **Create package.nix**:
+   - Copy template from existing grammar
+   - Update metadata (name, version, source)
+   - Fetch initial hash: `nix-prefetch-git <repo-url>`
+   - Test build: `nix build .#tree-sitter-<language>`
+
+5. **Update overlay**:
+   ```nix
+   # Add to overlays/default.nix
+   tree-sitter-<language>
+   ```
 
 ### Testing Strategy
-- Testing framework and approach
-- Unit vs integration testing strategy
-- Coverage requirements and standards
 
-#### Testing Commands
-Run your project's test suite:
+#### Build Testing
 ```bash
-# Replace with your testing commands
-[your test command]
-[your coverage command]
-[your integration test command]
+# Test specific grammar
+nix build .#tree-sitter-nix
+
+# Test all grammars
+nix flake check
+
+# Test with verbose output
+nix build --print-build-logs .#tree-sitter-nu
 ```
 
-#### Test Requirements
-- All new functionality must have corresponding tests
-- Tests should cover both success and error cases
-- Use descriptive test names
-- Mock external dependencies appropriately
-- Follow project-specific testing patterns
+#### Cross-Platform Testing
+```bash
+# Test on different systems (if available)
+nix build .#tree-sitter-nix --system x86_64-linux
+nix build .#tree-sitter-nix --system aarch64-linux
+nix build .#tree-sitter-nix --system x86_64-darwin
+nix build .#tree-sitter-nix --system aarch64-darwin
+```
 
-### Performance Guidelines
-- Performance considerations for your technology stack
-- Optimization strategies for your use case
-- Caching and efficiency patterns
-- Resource usage guidelines
--->
+#### Integration Testing
+```bash
+# Test overlay integration
+nix eval .#overlays.default
+nix eval .#lib.buildGrammar
+
+# Test in actual editor (Neovim example)
+nix shell .#tree-sitter-nix -c nvim
+```
+
+### Update Workflow
+
+1. **Check for updates**:
+   ```bash
+   # Using Nushell script (when available)
+   nu scripts/update-grammar.nu tree-sitter-nix
+   ```
+
+2. **Manual update process**:
+   ```bash
+   # Find latest release
+   curl -s https://api.github.com/repos/tree-sitter/tree-sitter-nix/releases/latest | jq -r '.tag_name'
+
+   # Compute new hash
+   nix-prefetch-git --url https://github.com/tree-sitter/tree-sitter-nix --rev <tag>
+
+   # Update package.nix with new version and hash
+   # Test build
+   nix build .#tree-sitter-nix
+   ```
+
+3. **Verify changes**:
+   ```bash
+   # Format code
+   nixpkgs-fmt **/*.nix
+
+   # Run flake check
+   nix flake check
+   ```
+
+### Git Workflow
+
+```bash
+# Create feature branch
+git checkout -b add-tree-sitter-<language>
+
+# Make changes
+
+# Commit with descriptive message
+git commit -m "feat: add tree-sitter-<language> package"
+
+# or
+git commit -m "chore: update tree-sitter-nix to v1.2.3"
+
+# Push and create PR
+git push origin add-tree-sitter-<language>
+```
+
+### Commit Message Convention
+- `feat:` - New grammar package
+- `chore:` - Version updates, maintenance
+- `fix:` - Bug fixes, build issues
+- `docs:` - Documentation updates
+- `ci:` - CI/CD changes
