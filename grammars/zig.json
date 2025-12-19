@@ -1,0 +1,9 @@
+{
+  "url": "https://github.com/tree-sitter-grammars/tree-sitter-zig",
+  "rev": "6479aa13f32f701c383083d8b28360ebd682fb7d",
+  "sha256": "sha256-T9Q6EhJ20tH5v1fUlnNA3UcdX52DMZE/PQjPWQtcHw0=",
+  "fetchLFS": false,
+  "fetchSubmodules": false,
+  "deepClone": false,
+  "leaveDotGit": false
+}
