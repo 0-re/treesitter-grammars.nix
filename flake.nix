@@ -1,13 +1,18 @@
 {
-  description = "Simple flake with a devshell";
+  description = "Curated collection of tree-sitter grammars packaged with Nix";
 
-  # Add all your dependencies here
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs?ref=nixos-unstable";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     blueprint.url = "github:numtide/blueprint";
     blueprint.inputs.nixpkgs.follows = "nixpkgs";
   };
 
-  # Load the blueprint
-  outputs = inputs: inputs.blueprint { inherit inputs; };
+  outputs = inputs:
+    let
+      blueprint-outputs = inputs.blueprint { inherit inputs; };
+    in
+    blueprint-outputs // {
+      # Manually expose overlay since blueprint doesn't auto-discover overlays
+      overlays.default = import ./overlays/default.nix;
+    };
 }
