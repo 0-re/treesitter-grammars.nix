@@ -4,21 +4,18 @@
 def main [] {
     print "Updating tree-sitter grammars..."
 
-    # All grammars with their repository paths
-    let grammars = [
-        { name: "astro", repo: "virchau13/tree-sitter-astro" },
-        { name: "hcl", repo: "MichaHoffmann/tree-sitter-hcl" },
-        { name: "kotlin", repo: "fwcd/tree-sitter-kotlin" },
-        { name: "nix", repo: "nix-community/tree-sitter-nix" },
-        { name: "nu", repo: "nushell/tree-sitter-nu" },
-        { name: "roc", repo: "faldor20/tree-sitter-roc" },
-        { name: "sql", repo: "DerekStride/tree-sitter-sql" },
-        { name: "templ", repo: "vrischmann/tree-sitter-templ" }
-    ]
+    # Find all JSON files in grammars directory
+    let grammar_files = (ls grammars/*.json | get name)
 
-    for grammar in $grammars {
-        print $"Updating ($grammar.name)..."
-        update_json_grammar $grammar.name $grammar.repo
+    for file in $grammar_files {
+        let name = ($file | path basename | str replace ".json" "")
+
+        # Read existing JSON to get the repo URL
+        let existing = (open $file)
+        let repo = ($existing.url | str replace "https://github.com/" "")
+
+      print $"Updating ($name) from \"($repo)\"..."
+        update_json_grammar $name $repo
     }
 
     print "\n✅ All grammars updated successfully!"
@@ -26,36 +23,30 @@ def main [] {
 
 # Update a single grammar JSON file
 def update_json_grammar [name: string, repo: string] {
-    let url = $"https://github.com/($repo)"
-    let api_url = $"https://api.github.com/repos/($repo)/commits/HEAD"
+    let parts = ($repo | split row "/")
+    let owner = $parts.0
+    let repo_name = $parts.1
 
     # Fetch latest commit hash
-    let rev = (
-        http get $api_url
-        | get sha
-    )
+    let api_url = $"https://api.github.com/repos/($repo)/commits/HEAD"
+    let rev = http get $api_url | get sha
 
-    # Use nix-prefetch-git to get the hash
-    let hash = (
-        nix-prefetch-git --url $url --rev $rev
+    # Use nix-prefetch-github to get the hash (positional args: owner repo)
+    let prefetch_result = (
+        nix-prefetch-github $owner $repo_name --rev $rev
         | from json
-        | get hash
     )
 
-    # Create JSON content
-    let json_content = {
-        url: $url,
+    # Write JSON file
+    {
+        url: $"https://github.com/($repo)",
         rev: $rev,
-        sha256: $hash,
+        sha256: $prefetch_result.hash,
         fetchLFS: false,
         fetchSubmodules: false,
         deepClone: false,
         leaveDotGit: false
-    }
-
-    # Write to file
-    let json_file = $"grammars/($name).json"
-    $json_content | to json | save -f $json_file
+    } | to json | save -f $"grammars/($name).json"
 
     print $"  ✓ Updated ($name) to ($rev | str substring 0..7)"
 }
