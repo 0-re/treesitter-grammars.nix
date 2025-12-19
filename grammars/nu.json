@@ -1,0 +1,9 @@
+{
+  "url": "https://github.com/nushell/tree-sitter-nu",
+  "rev": "4c149627cc592560f77ead1c384e27ec85926407",
+  "sha256": "sha256-h02kb3VxSK/fxQENtj2yaRmAQ5I8rt5s5R8VrWOQWeo=",
+  "fetchLFS": false,
+  "fetchSubmodules": false,
+  "deepClone": false,
+  "leaveDotGit": false
+}
