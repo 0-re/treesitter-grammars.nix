@@ -1,0 +1,234 @@
+#+TITLE: treesitter-grammars.nix
+#+AUTHOR: 0-re
+#+OPTIONS: toc:3 num:nil ^:nil
+
+#+html:<div align="center">
+#+html:<p>Curated collection of tree-sitter grammars with automatic daily updates</p>
+#+html:<p>
+#+html:<img src="https://img.shields.io/badge/nix-flake-blue?style=flat-square&logo=nixos" alt="Nix Flake">
+#+html:<a href="https://github.com/0-re/treesitter-grammars.nix"><img src="https://img.shields.io/badge/Source-grey?style=flat-square&logo=github" alt="GitHub Source"></a>
+#+html:<img src="https://img.shields.io/badge/License-MIT-blue?style=flat-square" alt="MIT License">
+#+html:</p>
+#+html:</div>
+
+-----
+
+** 🌄 Overview
+
+*treesitter-grammars.nix* provides a curated collection of tree-sitter grammars as a Nix flake, with automatic daily updates to keep everything fresh.
+
+*Instead of managing grammar versions manually...*
+
+#+begin_src nix
+# Hunting down repos, calculating hashes, keeping up with updates...
+pkgs.tree-sitter.buildGrammar {
+  language = "nu";
+  version = "???";
+  src = pkgs.fetchFromGitHub { /* ... */ };
+}
+#+end_src
+
+*Just use this flake:*
+
+#+begin_src nix
+{
+  inputs.treesitter-grammars.url = "github:0-re/treesitter-grammars.nix";
+}
+#+end_src
+
+Grammars are updated daily. *Fresh syntax highlighting, zero maintenance.*
+
+** ✨ Features
+
+- 📦 *Curated Grammars* — Hand-picked tree-sitter grammars not in nixpkgs or with fresher versions
+- 🔄 *Daily Updates* — Automated GitHub Actions keeps grammars up-to-date
+- 🧩 *Easy Integration* — Use as overlay or individual packages
+- 🏗️ *Blueprint-based* — Clean flake organization with automatic discovery
+
+** 📦 Available Grammars
+
+| Grammar | Repository                                                                                       |
+|---------+--------------------------------------------------------------------------------------------------|
+| astro   | [[https://github.com/virchau13/tree-sitter-astro][virchau13/tree-sitter-astro]]                 |
+| hcl     | [[https://github.com/MichaHoffmann/tree-sitter-hcl][MichaHoffmann/tree-sitter-hcl]]             |
+| kotlin  | [[https://github.com/fwcd/tree-sitter-kotlin][fwcd/tree-sitter-kotlin]]                         |
+| nix     | [[https://github.com/nix-community/tree-sitter-nix][nix-community/tree-sitter-nix]]             |
+| nu      | [[https://github.com/nushell/tree-sitter-nu][nushell/tree-sitter-nu]]                           |
+| roc     | [[https://github.com/faldor20/tree-sitter-roc][faldor20/tree-sitter-roc]]                       |
+| sql     | [[https://github.com/DerekStride/tree-sitter-sql][DerekStride/tree-sitter-sql]]                 |
+| templ   | [[https://github.com/vrischmann/tree-sitter-templ][vrischmann/tree-sitter-templ]]               |
+| zig     | [[https://github.com/tree-sitter-grammars/tree-sitter-zig][tree-sitter-grammars/tree-sitter-zig]] |
+
+** 🚀 Quick Start
+
+*** Try It Now
+
+#+begin_src bash
+# Build a specific grammar
+nix build github:0-re/treesitter-grammars.nix#tree-sitter-nix
+
+# Use tree-sitter with all grammars included
+nix shell github:0-re/treesitter-grammars.nix#tree-sitter
+#+end_src
+
+*** Add to Your Flake
+
+#+begin_src nix
+# flake.nix
+{
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    treesitter-grammars.url = "github:0-re/treesitter-grammars.nix";
+  };
+
+  outputs = { nixpkgs, treesitter-grammars, ... }: {
+    # Use the overlay for full integration
+    nixosConfigurations.myhost = nixpkgs.lib.nixosSystem {
+      system = "x86_64-linux";
+      modules = [{
+        nixpkgs.overlays = [ treesitter-grammars.overlays.default ];
+      }];
+    };
+  };
+}
+#+end_src
+
+** 📖 Usage Guide
+
+*** Using the Overlay
+
+The overlay provides all grammars under =pkgs.tree-sitter-grammars.*= and an enhanced =tree-sitter= with all grammars pre-configured.
+
+#+html:<details>
+#+html:<summary><strong>NixOS Configuration</strong></summary>
+
+#+begin_src nix
+{ pkgs, ... }:
+{
+  nixpkgs.overlays = [ treesitter-grammars.overlays.default ];
+
+  environment.systemPackages = [
+    pkgs.tree-sitter  # Includes all grammars
+  ];
+}
+#+end_src
+
+#+html:</details>
+
+#+html:<details>
+#+html:<summary><strong>Home Manager</strong></summary>
+
+#+begin_src nix
+{ pkgs, ... }:
+{
+  nixpkgs.overlays = [ treesitter-grammars.overlays.default ];
+
+  home.packages = [
+    pkgs.tree-sitter-grammars.tree-sitter-nix
+    pkgs.tree-sitter-grammars.tree-sitter-nu
+  ];
+}
+#+end_src
+
+#+html:</details>
+
+*** Using Individual Packages
+
+Access grammars directly without the overlay.
+
+#+html:<details>
+#+html:<summary><strong>Development Shell</strong></summary>
+
+#+begin_src nix
+{
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    treesitter-grammars.url = "github:0-re/treesitter-grammars.nix";
+  };
+
+  outputs = { nixpkgs, treesitter-grammars, ... }: {
+    devShells.x86_64-linux.default = let
+      pkgs = nixpkgs.legacyPackages.x86_64-linux;
+    in pkgs.mkShell {
+      packages = [
+        treesitter-grammars.packages.x86_64-linux.tree-sitter-nix
+        treesitter-grammars.packages.x86_64-linux.tree-sitter-nu
+      ];
+    };
+  };
+}
+#+end_src
+
+#+html:</details>
+
+** ➕ Adding a New Grammar
+
+*** 1. Create JSON File
+
+Add a new file in =grammars/= directory:
+
+#+begin_src bash
+# grammars/mylang.json
+#+end_src
+
+#+begin_src json
+{
+  "url": "https://github.com/owner/tree-sitter-mylang",
+  "rev": "commit-sha",
+  "sha256": "sha256-placeholder",
+  "fetchLFS": false,
+  "fetchSubmodules": false,
+  "deepClone": false,
+  "leaveDotGit": false
+}
+#+end_src
+
+*** 2. Update Hash
+
+#+begin_src bash
+# Enter dev shell and run update script
+nix develop
+./scripts/update-grammars.nu
+#+end_src
+
+The daily automation will keep it updated from then on.
+
+** 🔧 Development
+
+#+begin_src bash
+# Enter development shell
+nix develop
+
+# Update all grammars manually
+./scripts/update-grammars.nu
+
+# Build and test
+nix flake check
+nix build .#tree-sitter
+#+end_src
+
+** ⚙️ Automatic Updates
+
+This repository uses GitHub Actions to automatically update grammars:
+
+| Schedule    | Daily at 2 AM UTC                                  |
+| Trigger     | Manual dispatch also available                     |
+| Output      | Pull request with changes for review               |
+
+You can trigger updates manually from the Actions tab, optionally specifying which grammars to update.
+
+** 📋 Outputs Reference
+
+| Output                              | Description                              |
+|-------------------------------------+------------------------------------------|
+| =packages.<system>.tree-sitter-*=   | Individual grammar packages              |
+| =packages.<system>.tree-sitter=     | Tree-sitter CLI with all grammars        |
+| =overlays.default=                  | Nixpkgs overlay with all grammars        |
+
+** License
+
+MIT
+
+** Contributing
+
+Contributions are welcome! Please open an issue or pull request.
