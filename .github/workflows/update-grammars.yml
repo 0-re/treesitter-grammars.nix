@@ -33,10 +33,13 @@ jobs:
         id: update
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GRAMMARS: ${{ github.event.inputs.grammars }}
         run: |
-          chmod +x .github/scripts/update-grammars.sh
-          .github/scripts/update-grammars.sh
+          GRAMMARS="${{ github.event.inputs.grammars }}"
+          if [ -n "$GRAMMARS" ]; then
+            nix develop --command nu scripts/update-grammars.nu --grammars "$GRAMMARS"
+          else
+            nix develop --command nu scripts/update-grammars.nu
+          fi
 
       - name: Create pull request
         if: steps.update.outputs.updated == 'true'

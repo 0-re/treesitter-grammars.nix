@@ -67,8 +67,8 @@ Grammars are updated daily. *Fresh syntax highlighting, zero maintenance.*
 # Build a specific grammar
 nix build github:0-re/treesitter-grammars.nix#tree-sitter-nix
 
-# Use tree-sitter with all grammars included
-nix shell github:0-re/treesitter-grammars.nix#tree-sitter
+# Build tree-sitter with all grammars linked
+nix build github:0-re/treesitter-grammars.nix#tree-sitter-0-re
 #+end_src
 
 *** Add to Your Flake
@@ -97,7 +97,7 @@ nix shell github:0-re/treesitter-grammars.nix#tree-sitter
 
 *** Using the Overlay
 
-The overlay provides all grammars under =pkgs.tree-sitter-grammars.*= and an enhanced =tree-sitter= with all grammars pre-configured.
+The overlay adds grammars to =pkgs.tree-sitter-grammars.*= and provides =pkgs.tree-sitter-with-all-grammars=.
 
 #+html:<details>
 #+html:<summary><strong>NixOS Configuration</strong></summary>
@@ -108,7 +108,10 @@ The overlay provides all grammars under =pkgs.tree-sitter-grammars.*= and an enh
   nixpkgs.overlays = [ treesitter-grammars.overlays.default ];
 
   environment.systemPackages = [
-    pkgs.tree-sitter  # Includes all grammars
+    pkgs.tree-sitter-grammars.tree-sitter-nix
+    pkgs.tree-sitter-grammars.tree-sitter-nu
+    # Or get all grammars linked together:
+    pkgs.tree-sitter-with-all-grammars
   ];
 }
 #+end_src
@@ -183,12 +186,13 @@ Add a new file in =grammars/= directory:
 }
 #+end_src
 
+For grammars that need regeneration, add ="generate": true=.
+
 *** 2. Update Hash
 
 #+begin_src bash
 # Enter dev shell and run update script
-nix develop
-./scripts/update-grammars.nu
+nix develop --command nu scripts/update-grammars.nu
 #+end_src
 
 The daily automation will keep it updated from then on.
@@ -200,11 +204,14 @@ The daily automation will keep it updated from then on.
 nix develop
 
 # Update all grammars manually
-./scripts/update-grammars.nu
+nu scripts/update-grammars.nu
+
+# Update specific grammars
+nu scripts/update-grammars.nu --grammars "nix nu"
 
 # Build and test
 nix flake check
-nix build .#tree-sitter
+nix build .#tree-sitter-0-re
 #+end_src
 
 ** ⚙️ Automatic Updates
@@ -219,11 +226,11 @@ You can trigger updates manually from the Actions tab, optionally specifying whi
 
 ** 📋 Outputs Reference
 
-| Output                              | Description                              |
-|-------------------------------------+------------------------------------------|
-| =packages.<system>.tree-sitter-*=   | Individual grammar packages              |
-| =packages.<system>.tree-sitter=     | Tree-sitter CLI with all grammars        |
-| =overlays.default=                  | Nixpkgs overlay with all grammars        |
+| Output                                    | Description                         |
+|-------------------------------------------+-------------------------------------|
+| =packages.<system>.tree-sitter-*=         | Individual grammar packages         |
+| =packages.<system>.tree-sitter-0-re=      | All grammars linked together        |
+| =overlays.default=                        | Nixpkgs overlay with all grammars   |
 
 ** License
 
