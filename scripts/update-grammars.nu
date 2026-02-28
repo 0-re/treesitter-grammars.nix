@@ -51,14 +51,13 @@ def update-grammar [name: string]: nothing -> record<updated: bool, change: stri
     print $"  Updating: ($current_rev | str substring 0..7) -> ($latest_rev | str substring 0..7)"
     
     # Get the new hash using nix-prefetch-github
-    let prefetch_result = try {
-        nix-prefetch-github $owner $repo_name --rev $latest_rev | from json
+    let hash = try {
+        let result = nix-prefetch-github $owner $repo_name --rev $latest_rev | from json
+        $result.hash
     } catch {
-        print "  Error: Failed to calculate hash"
+        print $"  Error: Failed to calculate hash for ($name)"
         return { updated: false, change: "" }
     }
-    
-    let hash = $prefetch_result.hash
     
     # Update JSON file, preserving other fields like 'generate'
     let updated_json = $existing | upsert rev $latest_rev | upsert sha256 $hash

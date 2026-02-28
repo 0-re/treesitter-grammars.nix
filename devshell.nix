@@ -4,6 +4,7 @@ pkgs.mkShell {
   packages = [
     pkgs.nushell
     pkgs.nix-prefetch-github
+    pkgs.nix-prefetch-git
     pkgs.nixpkgs-fmt
   ];
 
