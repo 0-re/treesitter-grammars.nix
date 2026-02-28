@@ -81,8 +81,7 @@ def main [
     let grammars_to_update = if ($grammars | is-not-empty) {
         $grammars | split row " " | where { $in | is-not-empty }
     } else {
-        ls $"($GRAMMARS_DIR)/*.json" 
-        | get name 
+        glob $"($GRAMMARS_DIR)/*.json" 
         | each { path basename | str replace ".json" "" }
     }
     
