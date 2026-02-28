@@ -98,10 +98,7 @@ def main [
     
     # Set outputs for GitHub Actions
     if ($env.GITHUB_OUTPUT? | is-not-empty) {
-        $"updated=($updated)" | save --append $env.GITHUB_OUTPUT
-        "changes<<EOF" | save --append $env.GITHUB_OUTPUT
-        $changes | save --append $env.GITHUB_OUTPUT
-        "EOF" | save --append $env.GITHUB_OUTPUT
+        $"updated=($updated)\nchanges<<EOF\n($changes)\nEOF\n" | save --append --raw $env.GITHUB_OUTPUT
     }
     
     if $updated {
