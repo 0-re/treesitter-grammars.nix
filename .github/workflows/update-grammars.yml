@@ -37,17 +37,18 @@ jobs:
       - name: Setup Nix
         uses: cachix/install-nix-action@v31
 
-      - name: Cache Nix store
-        uses: actions/cache@v4
+      - name: Restore Nix store cache
+        id: nix-cache
+        uses: actions/cache/restore@v4
         with:
-          path: |
-            /nix/store
-            /nix/var/nix/db
-            /nix/var/nix/profiles
-          key: nix-${{ runner.os }}-${{ hashFiles('flake.lock') }}-${{ github.run_id }}
+          path: /tmp/nix-cache
+          key: nix-store-${{ runner.os }}-${{ hashFiles('flake.lock') }}
           restore-keys: |
-            nix-${{ runner.os }}-${{ hashFiles('flake.lock') }}-
-            nix-${{ runner.os }}-
+            nix-store-${{ runner.os }}-
+
+      - name: Import Nix store from cache
+        if: steps.nix-cache.outputs.cache-hit == 'true'
+        run: sudo nix-store --import < /tmp/nix-cache/store.nar
 
       - name: Set up git
         run: |
@@ -110,3 +111,18 @@ jobs:
           
           # Enable auto-merge; approval comes from the separate auto-approve workflow
           gh pr merge "$pr_number" --squash --auto
+
+      - name: Export Nix store for cache
+        if: always() && steps.nix-cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p /tmp/nix-cache
+          # Export the devshell closure — everything nix develop needs
+          nix-store --query --requisites $(nix path-info --derivation .#devShells.x86_64-linux.default 2>/dev/null || echo /nix/var/nix/profiles/default) \
+            | sudo nix-store --export > /tmp/nix-cache/store.nar || true
+
+      - name: Save Nix store cache
+        if: always() && steps.nix-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: /tmp/nix-cache
+          key: nix-store-${{ runner.os }}-${{ hashFiles('flake.lock') }}
