@@ -28,6 +28,7 @@ jobs:
         with:
           app-id: ${{ secrets.AUTO_APPROVE_APP_ID }}
           private-key: ${{ secrets.AUTO_APPROVE_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
 
       - name: Approve PR
         env:
