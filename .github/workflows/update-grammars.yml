@@ -44,8 +44,9 @@ jobs:
             /nix/store
             /nix/var/nix/db
             /nix/var/nix/profiles
-          key: nix-${{ runner.os }}-${{ hashFiles('flake.lock', 'devshell.nix') }}
+          key: nix-${{ runner.os }}-${{ hashFiles('flake.lock') }}-${{ github.run_id }}
           restore-keys: |
+            nix-${{ runner.os }}-${{ hashFiles('flake.lock') }}-
             nix-${{ runner.os }}-
 
       - name: Set up git
