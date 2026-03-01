@@ -25,14 +25,28 @@ jobs:
           app-id: ${{ secrets.AUTO_APPROVE_APP_ID }}
           private-key: ${{ secrets.AUTO_APPROVE_APP_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
 
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
+          # Use App token for checkout so git push can push branches
+          # containing workflow files (GITHUB_TOKEN lacks workflows scope)
           token: ${{ steps.app-token.outputs.token }}
 
       - name: Setup Nix
         uses: cachix/install-nix-action@v31
+
+      - name: Cache Nix store
+        uses: actions/cache@v4
+        with:
+          path: |
+            /nix/store
+            /nix/var/nix/db
+            /nix/var/nix/profiles
+          key: nix-${{ runner.os }}-${{ hashFiles('flake.lock', 'devshell.nix') }}
+          restore-keys: |
+            nix-${{ runner.os }}-
 
       - name: Set up git
         run: |
@@ -54,7 +68,10 @@ jobs:
       - name: Create pull request
         if: steps.update.outputs.updated == 'true'
         env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          # App token for git push (needs workflows scope for branches with .github/workflows)
+          APP_TOKEN: ${{ steps.app-token.outputs.token }}
+          # GITHUB_TOKEN for gh CLI so the PR is authored by github-actions[bot]
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           branch="update/grammars-$(date +%Y%m%d)"
           
