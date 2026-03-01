@@ -116,9 +116,10 @@ jobs:
         if: always() && steps.nix-cache.outputs.cache-hit != 'true'
         run: |
           mkdir -p /tmp/nix-cache
-          # Export the devshell closure — everything nix develop needs
-          nix-store --query --requisites $(nix path-info --derivation .#devShells.x86_64-linux.default 2>/dev/null || echo /nix/var/nix/profiles/default) \
-            | sudo $(which nix-store) --export > /tmp/nix-cache/store.nar || true
+          # Build the devshell and get its runtime closure
+          drv=$(nix build .#devShells.x86_64-linux.default --no-link --print-out-paths)
+          nix-store --query --requisites $drv | sudo $(which nix-store) --export > /tmp/nix-cache/store.nar
+          echo "Cache size: $(du -sh /tmp/nix-cache/store.nar | cut -f1)"
 
       - name: Save Nix store cache
         if: always() && steps.nix-cache.outputs.cache-hit != 'true'
