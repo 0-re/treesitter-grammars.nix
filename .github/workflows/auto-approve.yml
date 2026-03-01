@@ -1,0 +1,35 @@
+name: Auto-approve automated PRs
+
+# This workflow uses a dedicated GitHub App for approval.
+# Setup:
+#   1. Create a GitHub App (https://github.com/settings/apps/new)
+#      - Name: e.g. "treesitter-grammars-bot"
+#      - Permissions: Pull Requests (read & write)
+#      - Uncheck "Webhook active" (not needed)
+#   2. Install the app on this repository
+#   3. Add repo secrets:
+#      - AUTO_APPROVE_APP_ID: the App ID
+#      - AUTO_APPROVE_APP_PRIVATE_KEY: the App's private key (.pem)
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  approve:
+    runs-on: ubuntu-latest
+    if: >-
+      github.event.pull_request.user.login == 'github-actions[bot]'
+      && startsWith(github.event.pull_request.head.ref, 'update/grammars-')
+    steps:
+      - name: Generate App token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.AUTO_APPROVE_APP_ID }}
+          private-key: ${{ secrets.AUTO_APPROVE_APP_PRIVATE_KEY }}
+
+      - name: Approve PR
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: gh pr review "${{ github.event.pull_request.number }}" --repo "${{ github.repository }}" --approve
