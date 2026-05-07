@@ -42,8 +42,9 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: /tmp/nix-cache
-          key: nix-store-${{ runner.os }}-${{ hashFiles('flake.lock') }}
+          key: nix-store-${{ runner.os }}-${{ hashFiles('flake.lock') }}-${{ github.run_id }}
           restore-keys: |
+            nix-store-${{ runner.os }}-${{ hashFiles('flake.lock') }}-
             nix-store-${{ runner.os }}-
 
       - name: Import Nix store from cache
@@ -109,21 +110,24 @@ jobs:
             pr_number=$(echo "$pr_url" | grep -oE '[0-9]+$')
           fi
           
-          # Enable auto-merge; approval comes from the separate auto-approve workflow
-          gh pr merge "$pr_number" --squash --auto
+          # Try auto-merge first (works when branch protection blocks immediate merge);
+          # fall back to an immediate squash merge if the PR is already in 'clean' state.
+          gh pr merge "$pr_number" --squash --auto \
+            || gh pr merge "$pr_number" --squash --delete-branch \
+            || echo "Could not merge PR #$pr_number automatically; leaving it open."
 
       - name: Export Nix store for cache
-        if: always() && steps.nix-cache.outputs.cache-hit != 'true'
+        if: always()
         run: |
+          rm -rf /tmp/nix-cache
           mkdir -p /tmp/nix-cache
-          # Build the devshell and get its runtime closure
-          drv=$(nix build .#devShells.x86_64-linux.default --no-link --print-out-paths)
-          nix-store --query --requisites $drv | sudo $(which nix-store) --export > /tmp/nix-cache/store.nar
+          # Export all live store paths (everything reachable from GC roots)
+          nix-store --gc --print-live | sudo $(which nix-store) --export > /tmp/nix-cache/store.nar
           echo "Cache size: $(du -sh /tmp/nix-cache/store.nar | cut -f1)"
 
       - name: Save Nix store cache
-        if: always() && steps.nix-cache.outputs.cache-hit != 'true'
+        if: always()
         uses: actions/cache/save@v4
         with:
           path: /tmp/nix-cache
-          key: nix-store-${{ runner.os }}-${{ hashFiles('flake.lock') }}
+          key: nix-store-${{ runner.os }}-${{ hashFiles('flake.lock') }}-${{ github.run_id }}
