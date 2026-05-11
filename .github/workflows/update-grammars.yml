@@ -52,9 +52,17 @@ jobs:
         run: sudo $(which nix-store) --import < /tmp/nix-cache/store.nar
 
       - name: Set up git
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          APP_SLUG: ${{ steps.app-token.outputs.app-slug }}
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # Resolve the App bot's numeric user id so commits and the PR
+          # are attributed to the App's bot account, not github-actions[bot].
+          bot_user="${APP_SLUG}[bot]"
+          bot_id=$(gh api "/users/${bot_user}" --jq .id)
+          git config user.name  "${bot_user}"
+          git config user.email "${bot_id}+${bot_user}@users.noreply.github.com"
+          echo "Committing as ${bot_user} <${bot_id}+${bot_user}@users.noreply.github.com>"
 
       - name: Update grammars
         id: update
@@ -71,10 +79,10 @@ jobs:
       - name: Create pull request
         if: steps.update.outputs.updated == 'true'
         env:
-          # App token for git push (needs workflows scope for branches with .github/workflows)
-          APP_TOKEN: ${{ steps.app-token.outputs.token }}
-          # GITHUB_TOKEN for gh CLI so the PR is authored by github-actions[bot]
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Use the App token for both git push (needs workflows scope for
+          # branches touching .github/workflows) and gh CLI, so the PR is
+          # authored by the App's bot account instead of github-actions[bot].
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
           branch="update/grammars-$(date +%Y%m%d)"
           

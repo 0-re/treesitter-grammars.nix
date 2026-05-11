@@ -18,8 +18,10 @@ on:
 jobs:
   approve:
     runs-on: ubuntu-latest
+    # Approve PRs opened by any bot account on the update/grammars-* branches.
+    # This matches the App's bot user without hardcoding its slug.
     if: >-
-      github.event.pull_request.user.login == 'github-actions[bot]'
+      github.event.pull_request.user.type == 'Bot'
       && startsWith(github.event.pull_request.head.ref, 'update/grammars-')
     steps:
       - name: Generate App token
