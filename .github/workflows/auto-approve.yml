@@ -1,15 +1,19 @@
 name: Auto-approve automated PRs
 
-# This workflow uses a dedicated GitHub App for approval.
-# Setup:
-#   1. Create a GitHub App (https://github.com/settings/apps/new)
-#      - Name: e.g. "treesitter-grammars-bot"
-#      - Permissions: Pull Requests (read & write)
-#      - Uncheck "Webhook active" (not needed)
-#   2. Install the app on this repository
-#   3. Add repo secrets:
-#      - AUTO_APPROVE_APP_ID: the App ID
-#      - AUTO_APPROVE_APP_PRIVATE_KEY: the App's private key (.pem)
+# Two GitHub Apps are used in this repo because GitHub forbids self-approval:
+# the App that opens a PR cannot also approve it.
+#
+#   - A4PR (Auto-Approve Authentic Automated PR): approver, used HERE.
+#       Secrets: AUTO_APPROVE_APP_ID, AUTO_APPROVE_APP_PRIVATE_KEY
+#       Permissions: Pull requests: read & write
+#
+#   - 0.re Concierge: generic automation bot, opens PRs, used in
+#     update-grammars.yml. Installed/secrets are at the org level.
+#       Secrets: CONCIERGE_APP_ID, CONCIERGE_APP_PRIVATE_KEY
+#       Permissions: Contents: read & write, Pull requests: read & write,
+#                    Workflows: read & write
+#
+# Both apps must be installed on this repository.
 
 on:
   pull_request:

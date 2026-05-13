@@ -18,12 +18,15 @@ jobs:
       contents: write
       pull-requests: write
     steps:
+      # Uses the *creator* App (separate from A4PR which only approves).
+      # Two apps are required because GitHub forbids self-approval: the App
+      # that opens a PR cannot also approve it.
       - name: Generate App token
         id: app-token
         uses: actions/create-github-app-token@v1
         with:
-          app-id: ${{ secrets.AUTO_APPROVE_APP_ID }}
-          private-key: ${{ secrets.AUTO_APPROVE_APP_PRIVATE_KEY }}
+          app-id: ${{ secrets.CONCIERGE_APP_ID }}
+          private-key: ${{ secrets.CONCIERGE_APP_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
           repositories: ${{ github.event.repository.name }}
 
