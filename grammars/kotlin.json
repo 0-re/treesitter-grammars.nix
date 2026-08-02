@@ -1,7 +1,7 @@
 {
   "url": "https://github.com/fwcd/tree-sitter-kotlin",
-  "rev": "c8ac3d2627240160b999a2c100de3babbdb8f419",
-  "sha256": "sha256-hHiZNuiU05zT2JGG/60wX5XD6CY27QDChe4FlRB4j4E=",
+  "rev": "1852ea17b7f60fb3f9d84e0b1555d56b46b39fb1",
+  "sha256": "sha256-7pFQyuRy2tJTL8g3zi6Q1W4AzaNpucu09lae4lmBEyE=",
   "fetchLFS": false,
   "fetchSubmodules": false,
   "deepClone": false,
