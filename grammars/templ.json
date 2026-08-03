@@ -1,7 +1,7 @@
 {
   "url": "https://github.com/vrischmann/tree-sitter-templ",
-  "rev": "2c7a44babf7159f51ccd32c3227832fcde07fba0",
-  "sha256": "sha256-dD9oeRj6r1s0GH6I+uCqlpiHB5hcAmZNgdldH5ad9hk=",
+  "rev": "5f9f84ecb242dd457bf284f7fcaa9862b59cf5df",
+  "sha256": "sha256-6ghJ6nQTIxjfMI/jM/smOiLB0ircijToGnts/vWKSD4=",
   "fetchLFS": false,
   "fetchSubmodules": false,
   "deepClone": false,
