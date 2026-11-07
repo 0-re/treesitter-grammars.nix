@@ -1,7 +1,7 @@
 {
   "url": "https://github.com/nix-community/tree-sitter-nix",
-  "rev": "e49c2f317e896eb08967717e758a46d6eea038b2",
-  "sha256": "sha256-x7VOCQVhKEw6O+CgVzn+jlC57puAbNxIyCbkvTERH9g=",
+  "rev": "e9f150648a7e0015b77f4c9b315648b389d6364e",
+  "sha256": "sha256-3PzsXmRz+38ahV1oH8+JBkZnrb8Sjp1Rf7lyPQNrbTA=",
   "fetchLFS": false,
   "fetchSubmodules": false,
   "deepClone": false,
